@@ -1,6 +1,7 @@
 #coding=utf-8
 
 import re
+import os
 import IPy
 import sys
 import socket
@@ -107,7 +108,7 @@ def host_scan(host,ports,pthread):		#主机扫描
 		if th.result():
 			portsinfo.append(th.result())
 	port_executor.shutdown(wait=True)
-	if portsinfo == []:  				# 如果没有结果
+	if not portsinfo:  				# 如果没有结果
 		sys.stdout.write("[!] Don't find %s any open ports\n" % (host))
 	else:
 		total_result[host] = portsinfo
@@ -129,12 +130,12 @@ def ping_host(host):					#ICMP 主机发现
 	
 def proc_default_service():				#将端口设置为key 相应值为服务
 	try:
-		with open("default\\nmap_default_port_services.txt",'r') as f:
+		with open(os.path.dirname(os.path.realpath(__file__))+"/default/nmap_default_port_services.txt",'r') as f:
 			for line in f.readlines():
 				line = line.strip().split()
 				default_services[line[0]] = line[1]
 	except:
-		print("[!] Please check default\\nmap_default_port_services.txt")
+		print("[!] Please check default/nmap_default_port_services.txt")
 
 def main():
 	global default_services				#默认端口服务 为全局变量 方便访问
@@ -149,19 +150,6 @@ def main():
 		get_parser().print_help()		
 		sys.exit(0)
 
-	targets = []
-	if args.targets:					#处理-t参数
-		ipinfo = args.targets.split(",")
-		for i in ipinfo:
-			iplist = get_iplist(i)
-			if iplist:
-				targets += iplist
-	
-	if args.file:						#处理-f参数
-		iplist = get_ipfilelist(args.file)
-		if iplist:
-			targets += iplist
-	
 	ports = []
 	if args.ports:						#处理-p参数
 		portlist = get_portlist(args.ports)
@@ -170,22 +158,35 @@ def main():
 	
 	if not ports:                   	#如果未设置端口或者参数端口格式错误 则读取默认端口
 		try:
-			with open("default\default_general_ports.txt",'r') as f:
+			with open(os.path.dirname(os.path.realpath(__file__))+"/default/default_general_ports.txt",'r') as f:
 				for line in f.readlines():
 					portlist = get_portlist(line.strip())
 					if portlist:
 						ports += portlist
 			print("[-] Use default ports list")
-		except:
+		except Exception as e:
+			#print(e)
 			print("[!] Failed to read default ports file")
-	
+
+	targets = []
+	if args.targets:  # 处理-t参数
+		ipinfo = args.targets.split(",")
+		for i in ipinfo:
+			iplist = get_iplist(i)
+			if iplist:
+				targets += iplist
+
+	if args.file:  # 处理-f参数
+		iplist = get_ipfilelist(args.file)
+		if iplist:
+			targets += iplist
 	if not (targets and ports):			#目标设置失败则退出
 		sys.exit(0)						
 	
 	targets = list(set(targets))		#去重
 	ports = list(set(ports))
 	
-	pthread = args.pthread if args.pthread <= len(ports) else len(ports) #设置端口扫描线程数			
+	pthread = args.pthread if args.pthread <= len(ports) else len(ports) #设置端口扫描线程数
 	hthread = args.hthread if args.hthread <= len(targets) else len(targets) #设置主机扫描线程数
 
 #	print(targets)
@@ -210,4 +211,3 @@ def main():
 
 if __name__ == '__main__':
 	main()
-			
